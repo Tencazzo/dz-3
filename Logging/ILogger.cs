@@ -1,12 +1,8 @@
-﻿using System;
-
-namespace dz3.Logging
+﻿namespace dz3.Logging
 {
     public interface ILogger
     {
-        void LogInfo(string message);
-        void LogWarning(string message);
-        void LogError(string message, Exception exception = null);
-        void LogDebug(string message);
+        void Log(string message);
+        void LogError(string message);
     }
 }

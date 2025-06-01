@@ -1,9 +1,9 @@
-﻿using dz3.Logging;
-using dz3.Models;
-using Microsoft.Data.Sqlite;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Data.SQLite;
+using dz3.Logging;
+using dz3.Models;
 
 namespace dz3.Data
 {
@@ -11,287 +11,198 @@ namespace dz3.Data
     {
         private readonly string connectionString;
         private readonly ILogger logger;
-        private bool disposed = false; // Добавлено поле disposed
 
-        public SqliteTaskRepository(string dbConnectionString, ILogger logger)
+        public SqliteTaskRepository(string connectionString, ILogger logger)
         {
-            this.connectionString = dbConnectionString;
+            this.connectionString = connectionString;
             this.logger = logger;
         }
 
-        public void InitializeStorage()
+        public async Task InitializeDatabaseAsync()
         {
-            logger.LogInfo("Инициализация хранилища");
-
-            const string createTableQuery = @"
-                CREATE TABLE IF NOT EXISTS TaskEntities (
-                    TaskId INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Description TEXT NOT NULL,
-                    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    IsCompleted BOOLEAN DEFAULT 0,
-                    Priority INTEGER DEFAULT 0
-                );";
-
             try
             {
-                ExecuteNonQuery(createTableQuery);
-                logger.LogInfo("Хранилище успешно инициализировано");
+                // Проверяем существование файла базы данных
+                var dbPath = connectionString.Replace("Data Source=", "").Split(';')[0];
+                if (!System.IO.File.Exists(dbPath))
+                {
+                    // Создаем базу данных
+                    SQLiteConnection.CreateFile(dbPath);
+                }
+
+                using (var connection = new SQLiteConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    var createTableQuery = @"
+                        CREATE TABLE IF NOT EXISTS Tasks (
+                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            Description TEXT NOT NULL,
+                            CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )";
+
+                    using (var command = new SQLiteCommand(createTableQuery, connection))
+                    {
+                        await command.ExecuteNonQueryAsync();
+                    }
+                }
+
+                logger.Log("База данных инициализирована");
             }
             catch (Exception ex)
             {
-                logger.LogError("Ошибка при инициализации хранилища", ex);
+                logger.LogError($"Ошибка инициализации базы: {ex.Message}");
                 throw;
             }
         }
 
-        public List<TaskEntity> GetAllTasks()
+        public async Task<List<TaskEntity>> GetAllTasksAsync()
         {
-            logger.LogDebug("Получение всех задач");
-
             var tasks = new List<TaskEntity>();
-            const string selectQuery = @"
-                SELECT TaskId, Description, CreatedAt, IsCompleted, Priority 
-                FROM TaskEntities 
-                ORDER BY Priority DESC, CreatedAt DESC";
 
             try
             {
-                using (var connection = new SqliteConnection(connectionString))
+                using (var connection = new SQLiteConnection(connectionString))
                 {
-                    connection.Open();
+                    await connection.OpenAsync();
 
-                    using (var command = new SqliteCommand(selectQuery, connection))
-                    using (var reader = command.ExecuteReader())
+                    var query = "SELECT Id, Description, CreatedAt FROM Tasks ORDER BY Id DESC";
+
+                    using (var command = new SQLiteCommand(query, connection))
+                    using (var reader = await command.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
-                            var task = new TaskEntity
+                            tasks.Add(new TaskEntity
                             {
-                                TaskId = reader.GetInt32(0),
-                                Description = reader.GetString(1),
-                                CreatedAt = reader.GetDateTime(2),
-                                IsCompleted = reader.GetBoolean(3),
-                                Priority = reader.GetInt32(4)
-                            };
-                            tasks.Add(task);
+                                Id = Convert.ToInt32(reader["Id"]),
+                                Description = reader["Description"].ToString(),
+                                CreatedAt = Convert.ToDateTime(reader["CreatedAt"])
+                            });
                         }
                     }
                 }
 
-                logger.LogInfo($"Получено {tasks.Count} задач");
-                return tasks;
+                logger.Log($"Загружено {tasks.Count} задач");
             }
             catch (Exception ex)
             {
-                logger.LogError("Ошибка при получении задач", ex);
-                throw;
+                logger.LogError($"Ошибка загрузки задач: {ex.Message}");
             }
+
+            return tasks;
         }
 
-        public TaskEntity GetTaskById(int taskId)
+        public async Task<int> AddTaskAsync(string description)
         {
-            logger.LogDebug($"Поиск задачи с ID: {taskId}");
-
-            const string selectQuery = @"
-                SELECT TaskId, Description, CreatedAt, IsCompleted, Priority 
-                FROM TaskEntities 
-                WHERE TaskId = @id";
-
             try
             {
-                using (var connection = new SqliteConnection(connectionString))
+                using (var connection = new SQLiteConnection(connectionString))
                 {
-                    connection.Open();
+                    await connection.OpenAsync();
 
-                    using (var command = new SqliteCommand(selectQuery, connection))
+                    var query = "INSERT INTO Tasks (Description) VALUES (@description); SELECT last_insert_rowid();";
+
+                    using (var command = new SQLiteCommand(query, connection))
                     {
-                        command.Parameters.AddWithValue("@id", taskId);
+                        command.Parameters.AddWithValue("@description", description);
+                        var result = await command.ExecuteScalarAsync();
 
-                        using (var reader = command.ExecuteReader())
-                        {
-                            if (reader.Read())
-                            {
-                                return new TaskEntity
-                                {
-                                    TaskId = reader.GetInt32(0),
-                                    Description = reader.GetString(1),
-                                    CreatedAt = reader.GetDateTime(2),
-                                    IsCompleted = reader.GetBoolean(3),
-                                    Priority = reader.GetInt32(4)
-                                };
-                            }
-                        }
-                    }
-                }
-
-                logger.LogWarning($"Задача с ID {taskId} не найдена");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Ошибка при поиске задачи {taskId}", ex);
-                throw;
-            }
-        }
-
-        public int CreateTask(string description)
-        {
-            if (string.IsNullOrWhiteSpace(description))
-            {
-                logger.LogWarning("Попытка создания задачи с пустым описанием");
-                throw new ArgumentException("Описание не может быть пустым");
-            }
-
-            logger.LogInfo($"Создание задачи: {description}");
-
-            const string insertQuery = @"
-                INSERT INTO TaskEntities (Description) 
-                VALUES (@desc); 
-                SELECT last_insert_rowid();";
-
-            try
-            {
-                using (var connection = new SqliteConnection(connectionString))
-                {
-                    connection.Open();
-
-                    using (var command = new SqliteCommand(insertQuery, connection))
-                    {
-                        command.Parameters.AddWithValue("@desc", description.Trim());
-                        var result = command.ExecuteScalar();
                         var taskId = Convert.ToInt32(result);
-
-                        logger.LogInfo($"Задача создана с ID: {taskId}");
+                        logger.Log($"Создана задача с ID: {taskId}");
                         return taskId;
                     }
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError($"Ошибка при создании задачи: {description}", ex);
-                throw;
+                logger.LogError($"Ошибка создания задачи: {ex.Message}");
+                return 0;
             }
         }
 
-        public bool UpdateTask(int taskId, string newDescription)
+        public async Task<bool> UpdateTaskAsync(int id, string description)
         {
-            if (string.IsNullOrWhiteSpace(newDescription))
+            try
             {
-                logger.LogWarning($"Попытка обновления задачи {taskId} с пустым описанием");
+                using (var connection = new SQLiteConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    var query = "UPDATE Tasks SET Description = @description WHERE Id = @id";
+
+                    using (var command = new SQLiteCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@description", description);
+                        command.Parameters.AddWithValue("@id", id);
+
+                        var rowsAffected = await command.ExecuteNonQueryAsync();
+                        var success = rowsAffected > 0;
+
+                        if (success)
+                            logger.Log($"Обновлена задача ID: {id}");
+
+                        return success;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Ошибка обновления задачи: {ex.Message}");
                 return false;
             }
-
-            logger.LogInfo($"Обновление задачи {taskId}: {newDescription}");
-
-            const string updateQuery = "UPDATE TaskEntities SET Description = @desc WHERE TaskId = @id";
-
-            try
-            {
-                var rowsAffected = ExecuteNonQuery(updateQuery,
-                    ("@desc", newDescription.Trim()),
-                    ("@id", taskId));
-
-                var success = rowsAffected > 0;
-                if (success)
-                {
-                    logger.LogInfo($"Задача {taskId} обновлена");
-                }
-                else
-                {
-                    logger.LogWarning($"Задача {taskId} не найдена для обновления");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Ошибка при обновлении задачи {taskId}", ex);
-                throw;
-            }
         }
 
-        public bool DeleteTask(int taskId)
+        public async Task<bool> DeleteTaskAsync(int id)
         {
-            logger.LogInfo($"Удаление задачи {taskId}");
-
-            const string deleteQuery = "DELETE FROM TaskEntities WHERE TaskId = @id";
-
             try
             {
-                var rowsAffected = ExecuteNonQuery(deleteQuery, ("@id", taskId));
-
-                var success = rowsAffected > 0;
-                if (success)
+                using (var connection = new SQLiteConnection(connectionString))
                 {
-                    logger.LogInfo($"Задача {taskId} удалена");
-                }
-                else
-                {
-                    logger.LogWarning($"Задача {taskId} не найдена для удаления");
-                }
+                    await connection.OpenAsync();
 
-                return success;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Ошибка при удалении задачи {taskId}", ex);
-                throw;
-            }
-        }
+                    var query = "DELETE FROM Tasks WHERE Id = @id";
 
-        public bool ToggleTaskCompletion(int taskId)
-        {
-            logger.LogInfo($"Переключение статуса задачи {taskId}");
-
-            const string toggleQuery = "UPDATE TaskEntities SET IsCompleted = NOT IsCompleted WHERE TaskId = @id";
-
-            try
-            {
-                var rowsAffected = ExecuteNonQuery(toggleQuery, ("@id", taskId));
-
-                var success = rowsAffected > 0;
-                if (success)
-                {
-                    logger.LogInfo($"Статус задачи {taskId} переключен");
-                }
-                else
-                {
-                    logger.LogWarning($"Задача {taskId} не найдена");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Ошибка при переключении статуса задачи {taskId}", ex);
-                throw;
-            }
-        }
-
-        private int ExecuteNonQuery(string query, params (string name, object value)[] parameters)
-        {
-            using (var connection = new SqliteConnection(connectionString))
-            {
-                connection.Open();
-
-                using (var command = new SqliteCommand(query, connection))
-                {
-                    foreach (var (name, value) in parameters)
+                    using (var command = new SQLiteCommand(query, connection))
                     {
-                        command.Parameters.AddWithValue(name, value);
+                        command.Parameters.AddWithValue("@id", id);
+
+                        var rowsAffected = await command.ExecuteNonQueryAsync();
+                        var success = rowsAffected > 0;
+
+                        if (success)
+                            logger.Log($"Удалена задача ID: {id}");
+
+                        return success;
                     }
-                    return command.ExecuteNonQuery();
                 }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Ошибка удаления задачи: {ex.Message}");
+                return false;
             }
         }
 
-        public void Dispose()
+        // Синхронные методы
+        public List<TaskEntity> GetAllTasks()
         {
-            if (!disposed)
-            {
-                logger.LogInfo("Освобождение ресурсов SqliteTaskRepository");
-                disposed = true;
-            }
+            return GetAllTasksAsync().GetAwaiter().GetResult();
+        }
+
+        public int AddTask(string description)
+        {
+            return AddTaskAsync(description).GetAwaiter().GetResult();
+        }
+
+        public bool UpdateTask(int id, string description)
+        {
+            return UpdateTaskAsync(id, description).GetAwaiter().GetResult();
+        }
+
+        public bool DeleteTask(int id)
+        {
+            return DeleteTaskAsync(id).GetAwaiter().GetResult();
         }
     }
 }

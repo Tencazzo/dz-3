@@ -3,65 +3,35 @@ using System.IO;
 
 namespace dz3.Logging
 {
-    public class FileLogger : ILogger, IDisposable
+    public class FileLogger : ILogger
     {
         private readonly string logFilePath;
-        private readonly object lockObject = new object();
-        private bool disposed = false;
 
-        public FileLogger(string category = "Application")
+        public FileLogger()
         {
-            var logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
-            if (!Directory.Exists(logDirectory))
+            var logsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "dz3", "Logs");
+            Directory.CreateDirectory(logsDirectory);
+
+            var fileName = $"log_{DateTime.Now:yyyy-MM-dd}.txt";
+            logFilePath = Path.Combine(logsDirectory, fileName);
+        }
+
+        public void Log(string message)
+        {
+            try
             {
-                Directory.CreateDirectory(logDirectory);
+                var logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
+                File.AppendAllText(logFilePath, logEntry + Environment.NewLine);
             }
-
-            logFilePath = Path.Combine(logDirectory, $"TaskManager_{DateTime.Now:yyyyMMdd}.log");
-        }
-
-        public void LogInfo(string message)
-        {
-            WriteLog("INFO", message);
-        }
-
-        public void LogWarning(string message)
-        {
-            WriteLog("WARN", message);
-        }
-
-        public void LogError(string message, Exception exception = null)
-        {
-            var fullMessage = exception != null ? $"{message} | Exception: {exception}" : message;
-            WriteLog("ERROR", fullMessage);
-        }
-
-        public void LogDebug(string message)
-        {
-            WriteLog("DEBUG", message);
-        }
-
-        private void WriteLog(string level, string message)
-        {
-            if (disposed) return;
-
-            lock (lockObject)
+            catch
             {
-                try
-                {
-                    var logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{level}] {message}";
-                    File.AppendAllText(logFilePath, logEntry + Environment.NewLine);
-                }
-                catch
-                {
-                    // Игнорируем ошибки записи в лог
-                }
+                // Игнорируем ошибки логирования
             }
         }
 
-        public void Dispose()
+        public void LogError(string message)
         {
-            disposed = true;
+            Log($"ERROR: {message}");
         }
     }
 }

@@ -1,25 +1,22 @@
-﻿using dz3.Data;
-using dz3.Logging;
-using dz3.Services;
-using System;
+﻿using System;
 using System.Windows.Forms;
+using dz3.Models;
+using dz3.Services;
 
 namespace dz3
 {
     public partial class MainForm : Form
     {
-        private readonly ILogger logger;
-        private readonly TaskManagementService taskService;
+        private readonly TaskService taskService;
 
-        public MainForm(ILogger logger)
+        public MainForm(TaskService taskService)
         {
             InitializeComponent();
-            this.logger = logger;
+            this.taskService = taskService;
+        }
 
-            this.taskService = new TaskManagementService(
-                new SqliteTaskRepository(@"Data Source=TaskManagement.db;", logger),
-                logger);
-
+        private void MainForm_Load(object sender, EventArgs e)
+        {
             LoadTasks();
         }
 
@@ -27,63 +24,147 @@ namespace dz3
         {
             try
             {
-                listTasks.Items.Clear();
                 var tasks = taskService.GetAllTasks();
+
+                listTasks.Items.Clear();
+
                 foreach (var task in tasks)
                 {
-                    listTasks.Items.Add(task.Description);
+                    var item = new ListViewItem(task.Id.ToString());
+                    item.SubItems.Add(task.Description);
+                    item.SubItems.Add(task.CreatedAt.ToString("dd.MM.yyyy HH:mm"));
+                    item.Tag = task;
+                    listTasks.Items.Add(item);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError("Error loading tasks", ex);
-                MessageBox.Show("Error loading tasks", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Ошибка загрузки задач: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        private void SetupEventHandlers()
+
+        private void btnAdd_Click(object sender, EventArgs e)
         {
-            btnAdd.Click += BtnAdd_Click;
-            btnDelete.Click += BtnDelete_Click;
-            btnEdit.Click += BtnEdit_Click;
-            btnSave.Click += BtnSave_Click;
-            btnClear.Click += BtnClear_Click;
+            AddTask();
         }
 
-        private void BtnAdd_Click(object sender, EventArgs e)
+        private void txtTaskInput_KeyDown(object sender, KeyEventArgs e)
         {
-            if (!string.IsNullOrWhiteSpace(txtTaskInput.Text))
+            if (e.KeyCode == Keys.Enter)
             {
-                taskService.AddNewTask(txtTaskInput.Text);
-                LoadTasks();
-                txtTaskInput.Clear();
+                AddTask();
             }
         }
-        private void BtnDelete_Click(object sender, EventArgs e)
+
+        private void AddTask()
         {
-            if (listTasks.SelectedIndex >= 0)
+            var description = txtTaskInput.Text.Trim();
+
+            if (string.IsNullOrEmpty(description))
             {
-                taskService.DeleteTask(listTasks.SelectedIndex + 1);
-                LoadTasks();
+                MessageBox.Show("Введите описание задачи", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
-        }
 
-        private void BtnEdit_Click(object sender, EventArgs e)
-        {
-            if (listTasks.SelectedIndex >= 0 && !string.IsNullOrWhiteSpace(txtTaskInput.Text))
+            try
             {
-                taskService.UpdateTask(listTasks.SelectedIndex + 1, txtTaskInput.Text);
-                LoadTasks();
+                var success = taskService.AddTask(description);
+
+                if (success)
+                {
+                    txtTaskInput.Clear();
+                    LoadTasks();
+                }
+                else
+                {
+                    MessageBox.Show("Не удалось добавить задачу", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка добавления задачи: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void BtnSave_Click(object sender, EventArgs e)
+        private void btnEdit_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("Tasks saved", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (listTasks.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("Выберите задачу для изменения", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var selectedItem = listTasks.SelectedItems[0];
+            var task = (TaskEntity)selectedItem.Tag;
+
+            var inputForm = new InputForm("Изменить задачу", "Новое описание:", task.Description);
+
+            if (inputForm.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    var success = taskService.UpdateTask(task.Id, inputForm.InputText);
+
+                    if (success)
+                    {
+                        LoadTasks();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Не удалось изменить задачу", "Ошибка",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка изменения задачи: {ex.Message}", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
 
-        private void BtnClear_Click(object sender, EventArgs e)
+        private void btnDelete_Click(object sender, EventArgs e)
         {
-            txtTaskInput.Clear();
+            if (listTasks.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("Выберите задачу для удаления", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var selectedItem = listTasks.SelectedItems[0];
+            var task = (TaskEntity)selectedItem.Tag;
+
+            var result = MessageBox.Show($"Удалить задачу '{task.Description}'?", "Подтверждение",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                try
+                {
+                    var success = taskService.DeleteTask(task.Id);
+
+                    if (success)
+                    {
+                        LoadTasks();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Не удалось удалить задачу", "Ошибка",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка удаления задачи: {ex.Message}", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
     }
 }

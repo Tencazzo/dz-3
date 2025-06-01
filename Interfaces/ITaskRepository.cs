@@ -1,17 +1,23 @@
-﻿using dz3.Models;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using dz3.Models;
 
 namespace dz3.Data
 {
-    public interface ITaskRepository : IDisposable
+    public interface ITaskRepository
     {
-        void InitializeStorage();
+        Task InitializeDatabaseAsync();
+
+        // Асинхронные
+        Task<List<TaskEntity>> GetAllTasksAsync();
+        Task<int> AddTaskAsync(string description);
+        Task<bool> UpdateTaskAsync(int id, string description);
+        Task<bool> DeleteTaskAsync(int id);
+
+        // Синхронные
         List<TaskEntity> GetAllTasks();
-        TaskEntity GetTaskById(int taskId);
-        int CreateTask(string description);
-        bool UpdateTask(int taskId, string newDescription);
-        bool DeleteTask(int taskId);
-        bool ToggleTaskCompletion(int taskId);
+        int AddTask(string description);
+        bool UpdateTask(int id, string description);
+        bool DeleteTask(int id);
     }
 }

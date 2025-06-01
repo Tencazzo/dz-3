@@ -2,15 +2,8 @@
 {
     partial class MainForm
     {
-        /// <summary>
-        /// Обязательная переменная конструктора.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Освободить все используемые ресурсы.
-        /// </summary>
-        /// <param name="disposing">истинно, если управляемый ресурс должен быть удален; иначе ложно.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -20,125 +13,117 @@
             base.Dispose(disposing);
         }
 
-        #region Код, автоматически созданный конструктором форм Windows
-
-        /// <summary>
-        /// Требуемый метод для поддержки конструктора — не изменяйте 
-        /// содержимое этого метода с помощью редактора кода.
-        /// </summary>
         private void InitializeComponent()
         {
-            this.btnAdd = new System.Windows.Forms.Button();
-            this.btnClear = new System.Windows.Forms.Button();
-            this.btnDelete = new System.Windows.Forms.Button();
-            this.btnEdit = new System.Windows.Forms.Button();
-            this.btnSave = new System.Windows.Forms.Button();
-            this.lblTitle = new System.Windows.Forms.Label();
-            this.listTasks = new System.Windows.Forms.ListBox();
             this.txtTaskInput = new System.Windows.Forms.TextBox();
+            this.btnAdd = new System.Windows.Forms.Button();
+            this.listTasks = new System.Windows.Forms.ListView();
+            this.columnId = new System.Windows.Forms.ColumnHeader();
+            this.columnDescription = new System.Windows.Forms.ColumnHeader();
+            this.columnCreated = new System.Windows.Forms.ColumnHeader();
+            this.btnEdit = new System.Windows.Forms.Button();
+            this.btnDelete = new System.Windows.Forms.Button();
+            this.lblTitle = new System.Windows.Forms.Label();
             this.SuspendLayout();
-            // 
-            // btnAdd
-            // 
-            this.btnAdd.Location = new System.Drawing.Point(559, 330);
-            this.btnAdd.Name = "btnAdd";
-            this.btnAdd.Size = new System.Drawing.Size(98, 43);
-            this.btnAdd.TabIndex = 0;
-            this.btnAdd.Text = "btnAdd";
-            this.btnAdd.UseVisualStyleBackColor = true;
-            // 
-            // btnClear
-            // 
-            this.btnClear.Location = new System.Drawing.Point(672, 12);
-            this.btnClear.Name = "btnClear";
-            this.btnClear.Size = new System.Drawing.Size(102, 43);
-            this.btnClear.TabIndex = 1;
-            this.btnClear.Text = "btnClear";
-            this.btnClear.UseVisualStyleBackColor = true;
-            // 
-            // btnDelete
-            // 
-            this.btnDelete.Location = new System.Drawing.Point(672, 330);
-            this.btnDelete.Name = "btnDelete";
-            this.btnDelete.Size = new System.Drawing.Size(98, 43);
-            this.btnDelete.TabIndex = 2;
-            this.btnDelete.Text = "btnDelete";
-            this.btnDelete.UseVisualStyleBackColor = true;
-            // 
-            // btnEdit
-            // 
-            this.btnEdit.Location = new System.Drawing.Point(555, 379);
-            this.btnEdit.Name = "btnEdit";
-            this.btnEdit.Size = new System.Drawing.Size(102, 43);
-            this.btnEdit.TabIndex = 3;
-            this.btnEdit.Text = "btnEdit";
-            this.btnEdit.UseVisualStyleBackColor = true;
-            // 
-            // btnSave
-            // 
-            this.btnSave.Location = new System.Drawing.Point(672, 379);
-            this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(98, 43);
-            this.btnSave.TabIndex = 4;
-            this.btnSave.Text = "btnSave";
-            this.btnSave.UseVisualStyleBackColor = true;
-            // 
+
             // lblTitle
-            // 
             this.lblTitle.AutoSize = true;
-            this.lblTitle.Location = new System.Drawing.Point(12, 39);
+            this.lblTitle.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold);
+            this.lblTitle.Location = new System.Drawing.Point(12, 15);
             this.lblTitle.Name = "lblTitle";
-            this.lblTitle.Size = new System.Drawing.Size(47, 16);
-            this.lblTitle.TabIndex = 5;
-            this.lblTitle.Text = "lblTitle";
-            // 
-            // listTasks
-            // 
-            this.listTasks.FormattingEnabled = true;
-            this.listTasks.ItemHeight = 16;
-            this.listTasks.Location = new System.Drawing.Point(12, 68);
-            this.listTasks.Name = "listTasks";
-            this.listTasks.Size = new System.Drawing.Size(282, 260);
-            this.listTasks.TabIndex = 6;
-            // 
+            this.lblTitle.Size = new System.Drawing.Size(155, 20);
+            this.lblTitle.TabIndex = 0;
+            this.lblTitle.Text = "Управление задачами";
+
             // txtTaskInput
-            // 
-            this.txtTaskInput.Location = new System.Drawing.Point(546, 68);
-            this.txtTaskInput.Multiline = true;
+            this.txtTaskInput.Location = new System.Drawing.Point(12, 50);
             this.txtTaskInput.Name = "txtTaskInput";
-            this.txtTaskInput.Size = new System.Drawing.Size(224, 246);
-            this.txtTaskInput.TabIndex = 7;
-            // 
+            this.txtTaskInput.Size = new System.Drawing.Size(400, 20);
+            this.txtTaskInput.TabIndex = 1;
+            this.txtTaskInput.KeyDown += new System.Windows.Forms.KeyEventHandler(this.txtTaskInput_KeyDown);
+
+            // btnAdd
+            this.btnAdd.Location = new System.Drawing.Point(418, 48);
+            this.btnAdd.Name = "btnAdd";
+            this.btnAdd.Size = new System.Drawing.Size(75, 23);
+            this.btnAdd.TabIndex = 2;
+            this.btnAdd.Text = "Добавить";
+            this.btnAdd.UseVisualStyleBackColor = true;
+            this.btnAdd.Click += new System.EventHandler(this.btnAdd_Click);
+
+            // listTasks
+            this.listTasks.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+                this.columnId,
+                this.columnDescription,
+                this.columnCreated});
+            this.listTasks.FullRowSelect = true;
+            this.listTasks.GridLines = true;
+            this.listTasks.Location = new System.Drawing.Point(12, 85);
+            this.listTasks.MultiSelect = false;
+            this.listTasks.Name = "listTasks";
+            this.listTasks.Size = new System.Drawing.Size(560, 300);
+            this.listTasks.TabIndex = 3;
+            this.listTasks.UseCompatibleStateImageBehavior = false;
+            this.listTasks.View = System.Windows.Forms.View.Details;
+
+            // columnId
+            this.columnId.Text = "ID";
+            this.columnId.Width = 50;
+
+            // columnDescription
+            this.columnDescription.Text = "Описание";
+            this.columnDescription.Width = 350;
+
+            // columnCreated
+            this.columnCreated.Text = "Создано";
+            this.columnCreated.Width = 150;
+
+            // btnEdit
+            this.btnEdit.Location = new System.Drawing.Point(12, 400);
+            this.btnEdit.Name = "btnEdit";
+            this.btnEdit.Size = new System.Drawing.Size(75, 23);
+            this.btnEdit.TabIndex = 4;
+            this.btnEdit.Text = "Изменить";
+            this.btnEdit.UseVisualStyleBackColor = true;
+            this.btnEdit.Click += new System.EventHandler(this.btnEdit_Click);
+
+            // btnDelete
+            this.btnDelete.Location = new System.Drawing.Point(100, 400);
+            this.btnDelete.Name = "btnDelete";
+            this.btnDelete.Size = new System.Drawing.Size(75, 23);
+            this.btnDelete.TabIndex = 5;
+            this.btnDelete.Text = "Удалить";
+            this.btnDelete.UseVisualStyleBackColor = true;
+            this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
+
             // MainForm
-            // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Controls.Add(this.txtTaskInput);
-            this.Controls.Add(this.listTasks);
-            this.Controls.Add(this.lblTitle);
-            this.Controls.Add(this.btnSave);
-            this.Controls.Add(this.btnEdit);
+            this.ClientSize = new System.Drawing.Size(584, 441);
             this.Controls.Add(this.btnDelete);
-            this.Controls.Add(this.btnClear);
+            this.Controls.Add(this.btnEdit);
+            this.Controls.Add(this.listTasks);
             this.Controls.Add(this.btnAdd);
+            this.Controls.Add(this.txtTaskInput);
+            this.Controls.Add(this.lblTitle);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
             this.Name = "MainForm";
-            this.Text = "MainForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            this.Text = "Управление задачами";
+            this.Load += new System.EventHandler(this.MainForm_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
-        #endregion
-
-        private System.Windows.Forms.Button btnAdd;
-        private System.Windows.Forms.Button btnClear;
-        private System.Windows.Forms.Button btnDelete;
-        private System.Windows.Forms.Button btnEdit;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Label lblTitle;
-        private System.Windows.Forms.ListBox listTasks;
         private System.Windows.Forms.TextBox txtTaskInput;
+        private System.Windows.Forms.Button btnAdd;
+        private System.Windows.Forms.ListView listTasks;
+        private System.Windows.Forms.ColumnHeader columnId;
+        private System.Windows.Forms.ColumnHeader columnDescription;
+        private System.Windows.Forms.ColumnHeader columnCreated;
+        private System.Windows.Forms.Button btnEdit;
+        private System.Windows.Forms.Button btnDelete;
+        private System.Windows.Forms.Label lblTitle;
     }
 }
-

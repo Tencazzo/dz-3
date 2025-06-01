@@ -1,36 +1,50 @@
 ﻿using System;
+using System.IO;
 using System.Windows.Forms;
-using dz3.Data.IMigration;
+using dz3.Container;
+using dz3.Data;
 using dz3.Logging;
-using SQLitePCL;
+using dz3.Services;
 
 namespace dz3
 {
-    internal static class Program
+    static class Program
     {
         [STAThread]
         static void Main()
         {
-            Batteries.Init();
-            ILogger logger = null;
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
 
             try
             {
-                logger = new FileLogger();
-                logger.LogInfo("=== Starting dz3 application ===");
+                var container = new SimpleContainer();
 
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
+                var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "dz3");
+                Directory.CreateDirectory(appDataPath);
 
-                var migrationManager = new MigrationManager(@"Data Source=TaskManagement.db;", logger);
-                migrationManager.ApplyMigrations();
+                var dbPath = Path.Combine(appDataPath, "tasks.db");
+                var connectionString = $"Data Source={dbPath};Version=3;";
 
-                Application.Run(new MainForm(logger));
+                var logger = new FileLogger();
+                var taskRepository = new SqliteTaskRepository(connectionString, logger);
+
+                // Инициализируем базу синхронно при запуске
+                taskRepository.InitializeDatabaseAsync().GetAwaiter().GetResult();
+
+                var taskService = new TaskService(taskRepository, logger);
+
+                container.Register<ILogger>(logger);
+                container.Register<ITaskRepository>(taskRepository);
+                container.Register<TaskService>(taskService);
+
+                var mainForm = new MainForm(taskService);
+                Application.Run(mainForm);
             }
             catch (Exception ex)
             {
-                logger?.LogError("Critical application error", ex);
-                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Критическая ошибка запуска: {ex.Message}\n\nПроверьте установку System.Data.SQLite",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

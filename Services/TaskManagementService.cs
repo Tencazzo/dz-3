@@ -1,167 +1,58 @@
-﻿using dz3.Data;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using dz3.Data;
 using dz3.Logging;
 using dz3.Models;
-using System;
-using System.Collections.Generic;
 
 namespace dz3.Services
 {
-    public class TaskManagementService : IDisposable
+    public class TaskManagementService
     {
         private readonly ITaskRepository taskRepository;
         private readonly ILogger logger;
-        private bool disposed = false;
 
-        public TaskManagementService(ITaskRepository repository, ILogger logger)
+        public TaskManagementService(ITaskRepository taskRepository, ILogger logger)
         {
-            taskRepository = repository;
+            this.taskRepository = taskRepository;
             this.logger = logger;
-            logger.LogInfo("Инициализация TaskManagementService");
         }
 
-        public void Initialize()
+        public async Task InitializeAsync()
         {
-            logger.LogInfo("Инициализация сервиса управления задачами");
-
-            try
-            {
-                taskRepository.InitializeStorage();
-                logger.LogInfo("Сервис успешно инициализирован");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError("Ошибка при инициализации сервиса", ex);
-                throw;
-            }
+            await taskRepository.InitializeDatabaseAsync();
         }
 
-
-        public List<TaskEntity> GetAllTasks()
+        public async Task<List<TaskEntity>> GetAllTasksAsync()
         {
-            logger.LogDebug("Запрос всех задач");
-
-            try
-            {
-                var tasks = taskRepository.GetAllTasks();
-                logger.LogInfo($"Возвращено {tasks.Count} задач");
-                return tasks;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError("Ошибка при получении задач", ex);
-                throw;
-            }
+            return await taskRepository.GetAllTasksAsync();
         }
 
-        public bool AddNewTask(string taskDescription)
+        public async Task<bool> AddTaskAsync(string description)
         {
-            if (string.IsNullOrWhiteSpace(taskDescription))
+            if (string.IsNullOrWhiteSpace(description))
             {
-                logger.LogWarning("Попытка добавления пустой задачи");
+                logger.LogError("Попытка добавить пустую задачу");
                 return false;
             }
 
-            logger.LogInfo($"Добавление задачи: {taskDescription}");
-
-            try
-            {
-                var taskId = taskRepository.CreateTask(taskDescription);
-                var success = taskId > 0;
-
-                if (success)
-                {
-                    logger.LogInfo($"Задача добавлена с ID: {taskId}");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Ошибка при добавлении задачи: {taskDescription}", ex);
-                return false;
-            }
+            var taskId = await taskRepository.AddTaskAsync(description.Trim());
+            return taskId > 0;
         }
 
-        public bool UpdateTask(int taskId, string newDescription)
+        public async Task<bool> UpdateTaskAsync(int id, string description)
         {
-            if (string.IsNullOrWhiteSpace(newDescription))
+            if (string.IsNullOrWhiteSpace(description))
             {
-                logger.LogWarning($"Попытка обновления задачи {taskId} пустым описанием");
+                logger.LogError("Попытка обновить задачу пустым описанием");
                 return false;
             }
 
-            logger.LogInfo($"Обновление задачи {taskId}: {newDescription}");
-
-            try
-            {
-                var success = taskRepository.UpdateTask(taskId, newDescription);
-
-                if (success)
-                {
-                    logger.LogInfo($"Задача {taskId} обновлена");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Ошибка при обновлении задачи {taskId}", ex);
-                return false;
-            }
+            return await taskRepository.UpdateTaskAsync(id, description.Trim());
         }
 
-        public bool DeleteTask(int taskId)
+        public async Task<bool> DeleteTaskAsync(int id)
         {
-            logger.LogInfo($"Удаление задачи {taskId}");
-
-            try
-            {
-                var success = taskRepository.DeleteTask(taskId);
-
-                if (success)
-                {
-                    logger.LogInfo($"Задача {taskId} удалена");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Ошибка при удалении задачи {taskId}", ex);
-                return false;
-            }
-        }
-
-        public bool ToggleTaskCompletion(int taskId)
-        {
-            logger.LogInfo($"Переключение статуса задачи {taskId}");
-
-            try
-            {
-                var success = taskRepository.ToggleTaskCompletion(taskId);
-
-                if (success)
-                {
-                    logger.LogInfo($"Статус задачи {taskId} переключен");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError($"Ошибка при переключении статуса задачи {taskId}", ex);
-                return false;
-            }
-        }
-
-        public void Dispose()
-        {
-            if (!disposed)
-            {
-                logger.LogInfo("Освобождение ресурсов TaskManagementService");
-                taskRepository?.Dispose();
-                disposed = true;
-            }
+            return await taskRepository.DeleteTaskAsync(id);
         }
     }
 }
